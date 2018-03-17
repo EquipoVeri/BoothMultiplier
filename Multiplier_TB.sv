@@ -48,8 +48,8 @@ end
 /*********************************************************/
 
 initial begin 
-	#0 Multiplicand = 3;
-	#0 Multiplier = 4;
+	#0 Multiplicand = 7;
+	#0 Multiplier = 13;
 	
 end
 
