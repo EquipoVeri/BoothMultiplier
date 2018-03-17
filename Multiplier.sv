@@ -16,134 +16,141 @@
 *********************************************************************/
 module Multiplier
 #(
-	parameter WORD_LENGTH = 16
+	parameter WORD_LENGTH = 8
 ) 
 (	// Input ports
 	input clk,
 	input reset,
 	//input start,
-	input [WORD_LENGTH-1 : 0] Multiplier,
 	input [WORD_LENGTH-1 : 0] Multiplicand,
+	input [WORD_LENGTH-1 : 0] Multiplier,
 
 	
 	// Output ports
 	//output ready,
-	output sign,
+	output Sign,
 	output [WORD_LENGTH-1 : 0] Result
 );
 
 bit enable_bit;
 bit flag0_bit;
-bit Pzero_bit;
-bit s_bit;
-bit P32_bit;
-bit P33_bit;
-bit Psum_bit;
-bit Psel_bit;
+bit Qsel_bit;
+bit Qsum_bit;
+bit Sign_bit;
 
-wire [(WORD_LENGTH*2)-1 : 0] A_w;
-wire [(WORD_LENGTH*2)-1 : 0] S_w;
-wire [(WORD_LENGTH*2)-1 : 0] P_w;
-wire [(WORD_LENGTH*2)-1 : 0] Sum_w;
-wire [(WORD_LENGTH*2)-1 : 0] SumInit_w;
-wire [(WORD_LENGTH*2)-1 : 0] SumResult_w;
-wire [(WORD_LENGTH*2)-1 : 0] Ainit_w;
-wire [(WORD_LENGTH*2)-1 : 0] Sinit_w;
-wire [(WORD_LENGTH*2)-1 : 0] Pinit_w;
-wire [(WORD_LENGTH*2)-1 : 0] Ashift_w;
-wire [(WORD_LENGTH*2)-1 : 0] Sshift_w;
-wire [(WORD_LENGTH*2)-1 : 0] Pshift_w;
-
-
-assign Ainit_w = {Multiplier,{WORD_LENGTH{1'b0}},1'b0}; //Multiplier
-assign Sinit_w = {(~Multiplier + 1),17'b0};
-assign Pinit_w = {{WORD_LENGTH{1'b0}},Multiplicand,1'b0}; //Multiplicand
-
-//assign Pzero_bit = () ? 1'b1 : 1'b0;
-assign P32_bit = P_w[(WORD_LENGTH*2)-1];
-assign P33_bit = P_w[(WORD_LENGTH*2)];
-
-assign Psel_bit = P32_bit ^ P33_bit;
-assign Psum_bit = (P33_bit == 0) ? 1'b1 : 1'b0;
-
-assign Pshift_w = P_w << 1;
+//wire [1:0] select_w;
+wire [WORD_LENGTH:0] A_w;
+wire [WORD_LENGTH-1:0] M_w;
+wire [WORD_LENGTH-1:0] Q_w;
+wire [WORD_LENGTH:0] Areg_w;
+wire [WORD_LENGTH-1:0] Mreg_w;
+wire [WORD_LENGTH-1:0] Qreg_w;
+wire [WORD_LENGTH-1:0] Sum_w;
+wire [WORD_LENGTH:0] Ainit_w;
+wire [WORD_LENGTH-1:0] Minit_w;
+wire [WORD_LENGTH-1:0] Qinit_w;
+wire [WORD_LENGTH:0] Ashift_w;
+wire [WORD_LENGTH-1:0] Mshift_w;
+wire [WORD_LENGTH-1:0] Qshift_w;
+wire [WORD_LENGTH:0] Result_w;
 
 
+assign Ainit_w = {WORD_LENGTH+1{1'b0}}; //Multiplier
+assign Minit_w = Multiplicand;
+assign Qinit_w = Multiplier;
+//assign select_w = Q_w[1:0];
+assign Qsel_bit = Q_w[0] ^ Q_w[1];
+assign Qsum_bit = Qsel_bit & Q_w[0];
 
+assign Ashift_w = Areg_w >> 1;
+assign Mshift_w = Mreg_w >> 1;
+assign Qshift_w = Qreg_w << 1;
 
 Multiplexer2to1
 #(
-	.NBits(WORD_LENGTH)
+	.NBits(WORD_LENGTH+1)
 )
-Mux_Multiplicand
+Mux_Ainit
 (
 	.Selector(flag0_bit),
-	.MUX_Data0(Pinit_w),
-	.MUX_Data1(Pshift_w),
-	.MUX_Output(P_w)
-);
-
-Multiplexer2to1
-#(
-	.NBits(WORD_LENGTH)
-)
-Mux_Multiplier
-(
-	.Selector(P33_bit),
 	.MUX_Data0(Ainit_w),
-	.MUX_Data1(Sinit_w),
-	.MUX_Output(SumInit_w)
+	.MUX_Data1(Ashift_w),
+	.MUX_Output(A_w)
 );
-
 
 Multiplexer2to1
 #(
 	.NBits(WORD_LENGTH)
 )
-Mux_Sum
+Mux_Minit
 (
-	.Selector(Psum_bit),
-	.MUX_Data0(A_w),
-	.MUX_Data1(S_w),
-	.MUX_Output(SumInit_w)
+	.Selector(flag0_bit),
+	.MUX_Data0(Minit_w),
+	.MUX_Data1(Mshift_w),
+	.MUX_Output(M_w)
 );
 
-/*
 Multiplexer2to1
 #(
 	.NBits(WORD_LENGTH)
 )
-Mux
+Mux_Qinit
 (
-	.Selector(),
-	.MUX_Data0(),
-	.MUX_Data1(),
-	.MUX_Output()
-);*/
+	.Selector(flag0_bit),
+	.MUX_Data0(Qinit_w),
+	.MUX_Data1(Qshift_w),
+	.MUX_Output(Q_w)
+);
 
 Adder
 #(
-	.WORD_LENGTH(WORD_LENGTH)
+	.WORD_LENGTH(WORD_LENGTH+1)
 )
 Adder_Mult
 (
-	.selector(1'b1),
-	.Data1(P_w),
-	.Data2(SumInit_w),
+	.selector(Qsum_bit),
+	.Data1(A_w),
+	.Data2(M_w),
 	.result(Sum_w)
+);
+
+Register
+#(
+	.Word_Length(WORD_LENGTH+1)
+)
+A_reg
+(
+	.clk(clk),
+	.reset(reset),
+	.enable(1'b1),
+	.Data_Input(Sum_w),
+	.Data_Output(Areg_w)
 );
 
 Register
 #(
 	.Word_Length(WORD_LENGTH)
 )
-R_reg
+M_reg
 (
 	.clk(clk),
 	.reset(reset),
 	.enable(1'b1),
-	.Data_Input(Sum_w),
-	.Data_Output(SumResult_w)
+	.Data_Input(M_w),
+	.Data_Output(Mreg_w)
+);
+
+Register
+#(
+	.Word_Length(WORD_LENGTH)
+)
+Q_reg
+(
+	.clk(clk),
+	.reset(reset),
+	.enable(1'b1),
+	.Data_Input(Q_w),
+	.Data_Output(Qreg_w)
 );
 
 CounterWithFunction counter
@@ -151,11 +158,27 @@ CounterWithFunction counter
 	.clk(clk),
 	.reset(reset),
 	.enable(1'b1),
-	.flag0(flag0_w),
-	.flag32(enable_w) 
+	.flagStart(flag0_bit),
+	.flagReady(enable_bit) 
 );
 
 
+Register
+#(
+	.Word_Length(WORD_LENGTH+1)
+)
+Result_reg
+(
+	.clk(clk),
+	.reset(reset),
+	.enable(enable_bit),
+	.Data_Input(Qreg_w),
+	.Data_Output(Result_w)
+);
+
+assign Result = Result_w;
+assign Sign_bit = Result_w[WORD_LENGTH];
+assign Sign = Sign_bit;
 
 endmodule
 

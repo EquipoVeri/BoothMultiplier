@@ -21,7 +21,6 @@ module CounterWithFunction
 	parameter MAXIMUM_VALUE = 16,
 	parameter NBITS_FOR_COUNTER = CeilLog2(MAXIMUM_VALUE)
 )
-
 (
 	// Input Ports
 	input clk,
@@ -29,8 +28,8 @@ module CounterWithFunction
 	input enable,
 	
 	// Output Ports
-	output flag0,
-	output flag32 
+	output flagStart,
+	output flagReady 
 );
 
 bit MaxValue_Bit;
@@ -64,8 +63,8 @@ always_comb begin
 end
 		
 //---------------------------------------------------------------------------------------------
-assign flag32 = MaxValue_Bit;
-assign flag0 = Zero_Bit;
+assign flagReady = MaxValue_Bit;
+assign flagStart = Zero_Bit;
 //----------------------------------------------------------------------------------------------
 
 /*--------------------------------------------------------------------*/
@@ -77,7 +76,7 @@ assign flag0 = Zero_Bit;
        input integer data;
        integer i,result;
        begin
-          for(i=0; 2**i < data; i=i+1)
+          for(i=0; 2**i <= data; i=i+1)
              result = i + 1;
           CeilLog2 = result;
        end
