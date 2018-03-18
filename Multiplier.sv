@@ -28,7 +28,7 @@ module Multiplier
 	
 	// Output ports
 	//output ready,
-	//output sign,
+	output sign,
 	output [(WORD_LENGTH*2)-1 : 0] Result
 );
 
@@ -37,6 +37,7 @@ bit enable_bit;
 bit Qm1_bit;
 bit Qm1shift_bit;
 bit Qm1reg_bit;
+bit sign_bit;
 
 wire [WORD_LENGTH-1:0] A_w;
 wire [WORD_LENGTH-1:0] Q_w;
@@ -49,14 +50,12 @@ wire [WORD_LENGTH-1:0] Asum_w;
 wire [WORD_LENGTH-1:0] Areg_w;
 wire [WORD_LENGTH-1:0] Qreg_w;
 wire [(WORD_LENGTH*2)-1:0] Result_w;
+wire [(WORD_LENGTH*2)-1:0] c2result_w;
+
 
 assign Qm1shift_bit = Q_w[0];
-
-
 assign Qshift1_w = Q_w >> 1;
 assign Qshift2_w = {Asum_w[0], Qshift1_w[WORD_LENGTH-2:0]};
-
-
 assign Ashift1_w = Asum_w >> 1;
 assign Ashift2_w = {Asum_w[WORD_LENGTH-1], Ashift1_w[WORD_LENGTH-2:0]};
 
@@ -159,7 +158,7 @@ Q_reg
 	.clk(clk),
 	.reset(reset),
 	.enable(1'b1),
-	.Data_Input(Qshift2_w/*{Asum_w[0],{Q_w >> 1}}*/),
+	.Data_Input(Qshift2_w),
 	.Data_Output(Qreg_w)
 );
 
@@ -186,6 +185,18 @@ CounterWithFunction Counter
 	.flagReady(enable_bit) 
 );
 
-assign Result = Result_w;
+TwoComplement 
+#(
+	.Word_Length(WORD_LENGTH*2)
+)
+Divisor
+(
+	.signed_input(Result_w),
+	.unsigned_output(c2result_w),
+	.sign(sign_bit)
+);
+
+assign sign = sign_bit;
+assign Result = c2result_w;
 
 endmodule

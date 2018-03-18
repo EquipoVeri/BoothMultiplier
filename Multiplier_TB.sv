@@ -48,8 +48,8 @@ end
 /*********************************************************/
 
 initial begin 
-	#0 Multiplicand = -32760;
-	#0 Multiplier = 2;
+	#0 Multiplicand = 60;
+	#0 Multiplier = -2;
 	
 end
 
