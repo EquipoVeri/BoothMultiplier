@@ -7,7 +7,7 @@ parameter WORD_LENGTH = 16;
 
 bit clk = 0;
 bit reset;
-//bit sign; 
+bit Sign; 
 
 logic [WORD_LENGTH-1:0] Multiplicand = 0;
 logic [WORD_LENGTH-1:0] Multiplier = 0;
@@ -28,7 +28,7 @@ DUV
 	
 	// Output ports
 	//output ready,
-	//.Sign(Sign),
+	.Sign(Sign),
 	.Result(Result)
 );
 
@@ -48,8 +48,8 @@ end
 /*********************************************************/
 
 initial begin 
-	#0 Multiplicand = 60;
-	#0 Multiplier = -2;
+	#0 Multiplicand = -32760;
+	#0 Multiplier = 2;
 	
 end
 

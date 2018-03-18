@@ -50,12 +50,15 @@ wire [WORD_LENGTH-1:0] Asum_w;
 wire [WORD_LENGTH-1:0] Areg_w;
 wire [WORD_LENGTH-1:0] Qreg_w;
 wire [(WORD_LENGTH*2)-1:0] Result_w;
-wire [(WORD_LENGTH*2)-1:0] c2result_w;
-
+wire [(WORD_LENGTH*2)-1:0] ResultSigned_w;
 
 assign Qm1shift_bit = Q_w[0];
+
+
 assign Qshift1_w = Q_w >> 1;
 assign Qshift2_w = {Asum_w[0], Qshift1_w[WORD_LENGTH-2:0]};
+
+
 assign Ashift1_w = Asum_w >> 1;
 assign Ashift2_w = {Asum_w[WORD_LENGTH-1], Ashift1_w[WORD_LENGTH-2:0]};
 
@@ -158,7 +161,7 @@ Q_reg
 	.clk(clk),
 	.reset(reset),
 	.enable(1'b1),
-	.Data_Input(Qshift2_w),
+	.Data_Input(Qshift2_w/*{Asum_w[0],{Q_w >> 1}}*/),
 	.Data_Output(Qreg_w)
 );
 
@@ -175,6 +178,17 @@ Result_reg
 	.Data_Output(Result_w)
 );
 
+Sign_Multiplier
+#(
+	.WORD_LENGTH(WORD_LENGTH*2)
+)
+sign_multiplier
+(
+	.result(Result_w),
+	.nosigned_result(ResultSigned_w),
+	.sign(sign_bit)
+);
+
 
 CounterWithFunction Counter
 (
@@ -185,18 +199,7 @@ CounterWithFunction Counter
 	.flagReady(enable_bit) 
 );
 
-TwoComplement 
-#(
-	.Word_Length(WORD_LENGTH*2)
-)
-Divisor
-(
-	.signed_input(Result_w),
-	.unsigned_output(c2result_w),
-	.sign(sign_bit)
-);
-
+assign Result = ResultSigned_w;
 assign sign = sign_bit;
-assign Result = c2result_w;
 
 endmodule
