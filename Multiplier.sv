@@ -28,98 +28,101 @@ module Multiplier
 	
 	// Output ports
 	//output ready,
-	output sign,
-	output [WORD_LENGTH-1 : 0] Result
+	//output sign,
+	output [(WORD_LENGTH*2)-1 : 0] Result
 );
 
-bit enable_bit;
 bit flag0_bit;
-bit Pzero_bit;
-bit s_bit;
-bit P32_bit;
-bit P33_bit;
-bit Psum_bit;
-bit Psel_bit;
+bit enable_bit;
+bit Qm1_bit;
+bit Qm1shift_bit;
+bit Qm1reg_bit;
 
-wire [(WORD_LENGTH*2)-1 : 0] A_w;
-wire [(WORD_LENGTH*2)-1 : 0] S_w;
-wire [(WORD_LENGTH*2)-1 : 0] P_w;
-wire [(WORD_LENGTH*2)-1 : 0] Sum_w;
-wire [(WORD_LENGTH*2)-1 : 0] SumInit_w;
-wire [(WORD_LENGTH*2)-1 : 0] SumResult_w;
-wire [(WORD_LENGTH*2)-1 : 0] Ainit_w;
-wire [(WORD_LENGTH*2)-1 : 0] Sinit_w;
-wire [(WORD_LENGTH*2)-1 : 0] Pinit_w;
-wire [(WORD_LENGTH*2)-1 : 0] Ashift_w;
-wire [(WORD_LENGTH*2)-1 : 0] Sshift_w;
-wire [(WORD_LENGTH*2)-1 : 0] Pshift_w;
+wire [WORD_LENGTH-1:0] A_w;
+wire [WORD_LENGTH-1:0] Q_w;
+wire [WORD_LENGTH-1:0] M_w;
+wire [WORD_LENGTH-1:0] Ashift1_w;
+wire [WORD_LENGTH-1:0] Ashift2_w;
+wire [WORD_LENGTH-1:0] Qshift1_w;
+wire [WORD_LENGTH-1:0] Qshift2_w;
+wire [WORD_LENGTH-1:0] Asum_w;
+wire [WORD_LENGTH-1:0] Areg_w;
+wire [WORD_LENGTH-1:0] Qreg_w;
+wire [(WORD_LENGTH*2)-1:0] Result_w;
 
-
-assign Ainit_w = {Multiplier,{WORD_LENGTH{1'b0}},1'b0}; //Multiplier
-assign Sinit_w = {(~Multiplier + 1),17'b0};
-assign Pinit_w = {{WORD_LENGTH{1'b0}},Multiplicand,1'b0}; //Multiplicand
-
-//assign Pzero_bit = () ? 1'b1 : 1'b0;
-assign P32_bit = P_w[(WORD_LENGTH*2)-1];
-assign P33_bit = P_w[(WORD_LENGTH*2)];
-
-assign Psel_bit = P32_bit ^ P33_bit;
-assign Psum_bit = (P33_bit == 0) ? 1'b1 : 1'b0;
-
-assign Pshift_w = P_w << 1;
+assign Qm1shift_bit = Q_w[0];
 
 
+assign Qshift1_w = Q_w >> 1;
+assign Qshift2_w = {Asum_w[0], Qshift1_w[WORD_LENGTH-2:0]};
+
+
+assign Ashift1_w = Asum_w >> 1;
+assign Ashift2_w = {Asum_w[WORD_LENGTH-1], Ashift1_w[WORD_LENGTH-2:0]};
 
 
 Multiplexer2to1
 #(
 	.NBits(WORD_LENGTH)
 )
-Mux_Multiplicand
+Mux_A
 (
 	.Selector(flag0_bit),
-	.MUX_Data0(Pinit_w),
-	.MUX_Data1(Pshift_w),
-	.MUX_Output(P_w)
+	.MUX_Data0({WORD_LENGTH{1'b0}}),
+	.MUX_Data1(Areg_w),
+	.MUX_Output(A_w)
 );
 
 Multiplexer2to1
 #(
 	.NBits(WORD_LENGTH)
 )
-Mux_Multiplier
+Mux_Q
 (
-	.Selector(P33_bit),
-	.MUX_Data0(Ainit_w),
-	.MUX_Data1(Sinit_w),
-	.MUX_Output(SumInit_w)
+	.Selector(flag0_bit),
+	.MUX_Data0(Multiplier),
+	.MUX_Data1(Qreg_w),
+	.MUX_Output(Q_w)
 );
 
-
 Multiplexer2to1
+#(
+	.NBits(2)
+)
+Mux_Qm1
+(
+	.Selector(flag0_bit),
+	.MUX_Data0(1'b0),
+	.MUX_Data1(Qm1reg_bit),
+	.MUX_Output(Qm1_bit)
+);
+
+Register
+#(
+	.Word_Length(WORD_LENGTH)
+)
+Qm1_reg
+(
+	.clk(clk),
+	.reset(reset),
+	.enable(1'b1),
+	.Data_Input(Qm1shift_bit),
+	.Data_Output(Qm1reg_bit)
+);
+
+Multiplexer4to1 
 #(
 	.NBits(WORD_LENGTH)
 )
 Mux_Sum
 (
-	.Selector(Psum_bit),
-	.MUX_Data0(A_w),
-	.MUX_Data1(S_w),
-	.MUX_Output(SumInit_w)
+	.Selector({Q_w[0],Qm1_bit}),
+	.MUX_Data0({WORD_LENGTH{1'b0}}),
+	.MUX_Data1(Multiplicand),
+	.MUX_Data2(~Multiplicand + 1),
+	.MUX_Data3({WORD_LENGTH{1'b0}}),
+	.MUX_Output(M_w)
 );
-
-/*
-Multiplexer2to1
-#(
-	.NBits(WORD_LENGTH)
-)
-Mux
-(
-	.Selector(),
-	.MUX_Data0(),
-	.MUX_Data1(),
-	.MUX_Output()
-);*/
 
 Adder
 #(
@@ -128,35 +131,61 @@ Adder
 Adder_Mult
 (
 	.selector(1'b1),
-	.Data1(P_w),
-	.Data2(SumInit_w),
-	.result(Sum_w)
+	.Data1(A_w),
+	.Data2(M_w),
+	.result(Asum_w)
 );
 
 Register
 #(
 	.Word_Length(WORD_LENGTH)
 )
-R_reg
+
+A_reg
 (
 	.clk(clk),
 	.reset(reset),
 	.enable(1'b1),
-	.Data_Input(Sum_w),
-	.Data_Output(SumResult_w)
+	.Data_Input(Ashift2_w),
+	.Data_Output(Areg_w)
 );
 
-CounterWithFunction counter
+Register
+#(
+	.Word_Length(WORD_LENGTH)
+)
+Q_reg
 (
 	.clk(clk),
 	.reset(reset),
 	.enable(1'b1),
-	.flag0(flag0_w),
-	.flag32(enable_w) 
+	.Data_Input(Qshift2_w/*{Asum_w[0],{Q_w >> 1}}*/),
+	.Data_Output(Qreg_w)
+);
+
+Register
+#(
+	.Word_Length(WORD_LENGTH*2)
+)
+Result_reg
+(
+	.clk(clk),
+	.reset(reset),
+	.enable(enable_bit),
+	.Data_Input({Ashift2_w,Qshift2_w}),
+	.Data_Output(Result_w)
 );
 
 
+CounterWithFunction Counter
+(
+	.clk(clk),
+	.reset(reset),
+	.enable(1'b1),
+	.flagStart(flag0_bit),
+	.flagReady(enable_bit) 
+);
+
+assign Result = Result_w;
 
 endmodule
-
-
